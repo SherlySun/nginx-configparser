@@ -10,16 +10,20 @@ class NginxConfig;
 // The parsed representation of a single config statement.
 class NginxConfigStatement {
  public:
+  NginxConfigStatement() {leftBracket=false;}
   std::string ToString(int depth);
   std::vector<std::string> tokens_;
   std::unique_ptr<NginxConfig> child_block_;
+  bool leftBracket; /* used to pair the brackets inside the statement */
 };
 
 // The parsed representation of the entire config.
 class NginxConfig {
  public:
+  NginxConfig() {diffBracket = 0;}
   std::string ToString(int depth = 0);
   std::vector<std::shared_ptr<NginxConfigStatement>> statements_;
+  int diffBracket; /*left-right: used to guarantee the brackets inside a cofiguration is matched */
 };
 
 // The driver that parses a config file and generates an NginxConfig.

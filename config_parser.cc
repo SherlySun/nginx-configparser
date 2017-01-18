@@ -147,8 +147,11 @@ NginxConfigParser::TokenType NginxConfigParser::ParseToken(std::istream* input,
   return TOKEN_TYPE_EOF;
 }
 
+
+/* Correct the bracket matching problem inside this function */
 bool NginxConfigParser::Parse(std::istream* config_file, NginxConfig* config) {
   std::stack<NginxConfig*> config_stack;
+  bool bracketError = false;
   config_stack.push(config);
   TokenType last_token_type = TOKEN_TYPE_START;
   TokenType token_type;
@@ -195,19 +198,39 @@ bool NginxConfigParser::Parse(std::istream* config_file, NginxConfig* config) {
         break;
       }
       NginxConfig* const new_config = new NginxConfig;
+      config_stack.top()->diffBracket += 1;
       config_stack.top()->statements_.back().get()->child_block_.reset(
           new_config);
+      config_stack.top()->statements_.back().get()->leftBracket = true;
       config_stack.push(new_config);
     } else if (token_type == TOKEN_TYPE_END_BLOCK) {
-      if (last_token_type != TOKEN_TYPE_STATEMENT_END) {
+      if (last_token_type != TOKEN_TYPE_STATEMENT_END && last_token_type!=TOKEN_TYPE_END_BLOCK) {
         // Error.
         break;
       }
+      NginxConfig* tempConfig = config_stack.top();
       config_stack.pop();
+      /* should guarantee the config popped put is bracket matched */
+      if(tempConfig->diffBracket!=0){
+        bracketError = true;
+        break;
+      }
+      /* the father statement should contain the left "{" */
+      if(config_stack.top()->statements_.back().get()->leftBracket == false) {
+          bracketError=true;
+          break;
+      }
+      config_stack.top()->diffBracket-=1;
+
     } else if (token_type == TOKEN_TYPE_EOF) {
       if (last_token_type != TOKEN_TYPE_STATEMENT_END &&
           last_token_type != TOKEN_TYPE_END_BLOCK) {
         // Error.
+        break;
+      }
+      /* check the bracket matching of root config */
+      if(config_stack.size()!=1 || config_stack.top()->diffBracket!=0){
+        bracketError = true;
         break;
       }
       return true;
@@ -218,7 +241,8 @@ bool NginxConfigParser::Parse(std::istream* config_file, NginxConfig* config) {
     last_token_type = token_type;
   }
 
-  printf ("Bad transition from %s to %s\n",
+  if(bracketError)printf("Bracket matching error\n");
+  else printf ("Bad transition from %s to %s\n",
           TokenTypeAsString(last_token_type),
           TokenTypeAsString(token_type));
   return false;
