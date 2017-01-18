@@ -77,12 +77,19 @@ TEST_F(NginxConfigParserTest,normalBlockInput)
 	EXPECT_TRUE(ParseString("events {worker_connection 768; multi_accept on;}"));
 }
 
+/* original config_parser failed here */
 TEST_F(NginxConfigParserTest,missMatchBlockInput)
 {
 	EXPECT_FALSE(ParseString("events {worker_connection 768;")); //error: does not check parantheses matching
 	EXPECT_FALSE(ParseString("events worker_connection 768;}")); //error: does not check parantheses matching
 	EXPECT_FALSE(ParseString("events {{worker_connection 768;}"));
 	EXPECT_FALSE(ParseString("events {worker_connection 768;}}"));
+}
+
+/* original config_parser failed here */
+TEST_F(NginxConfigParserTest,recurBlockTest)
+{
+	EXPECT_TRUE(ParseString("events { server {listen 80;}}")); //error: does not allow existence of "}}"
 }
 
 TEST_F(NginxConfigParserTest, fileInput) 
